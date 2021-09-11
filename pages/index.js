@@ -20,163 +20,162 @@ import {
 } from "../components/index.module.css";
 
 const { NEXT_PUBLIC_API_ENDPOINT } = process.env;
-const {
-    NEXT_PUBLIC_ANILIST_ENDPOINT = / } = process.env;
+const { NEXT_PUBLIC_ANILIST_ENDPOINT = "/" } = process.env;
 
-    const Index = () => {
-        const [dropTargetText, setDropTargetText] = useState("");
-        const [isCutBorders, setIsCutBorders] = useState(true);
-        const [anilistFilter, setAnilistFilter] = useState();
-        const [messageText, setMessageText] = useState("");
-        const [imageURL, setImageURL] = useState("");
-        const [searchImage, setSearchImage] = useState("");
-        const [searchImageSrc, setSearchImageSrc] = useState("");
-        const [searchResult, setSearchResult] = useState([]);
-        const [selectedResult, setSelectedResult] = useState();
-        const [showNSFW, setshowNSFW] = useState(false);
-        const [anilistInfo, setAnilistInfo] = useState();
-        const [playerSrc, setPlayerSrc] = useState();
-        const [playerTimeCode, setPlayerTimeCode] = useState("");
-        const [playerFileName, setPlayerFileName] = useState("");
-        const [isLoading, setIsLoading] = useState(false);
-        const [isSearching, setIsSearching] = useState(false);
-        useEffect(() => {
-            const searchParams = new URLSearchParams(location.search);
-            if (searchParams.has("url")) {
-                setImageURL(searchParams.get("url"));
-                setSearchImageSrc(`/image-proxy?url=${encodeURIComponent(searchParams.get("url"))}`);
+const Index = () => {
+    const [dropTargetText, setDropTargetText] = useState("");
+    const [isCutBorders, setIsCutBorders] = useState(true);
+    const [anilistFilter, setAnilistFilter] = useState();
+    const [messageText, setMessageText] = useState("");
+    const [imageURL, setImageURL] = useState("");
+    const [searchImage, setSearchImage] = useState("");
+    const [searchImageSrc, setSearchImageSrc] = useState("");
+    const [searchResult, setSearchResult] = useState([]);
+    const [selectedResult, setSelectedResult] = useState();
+    const [showNSFW, setshowNSFW] = useState(false);
+    const [anilistInfo, setAnilistInfo] = useState();
+    const [playerSrc, setPlayerSrc] = useState();
+    const [playerTimeCode, setPlayerTimeCode] = useState("");
+    const [playerFileName, setPlayerFileName] = useState("");
+    const [isLoading, setIsLoading] = useState(false);
+    const [isSearching, setIsSearching] = useState(false);
+    useEffect(() => {
+        const searchParams = new URLSearchParams(location.search);
+        if (searchParams.has("url")) {
+            setImageURL(searchParams.get("url"));
+            setSearchImageSrc(`/image-proxy?url=${encodeURIComponent(searchParams.get("url"))}`);
+        }
+        document.addEventListener(
+            "paste",
+            (e) => {
+                const items = e.clipboardData ? .items;
+                if (!items) return;
+                const item = Array.from(items).find((e) => e.type.startsWith("image"));
+                if (!item) return;
+                setSearchImageSrc(URL.createObjectURL(item.getAsFile()));
+                e.preventDefault();
+            },
+            false
+        );
+
+        window.onerror = function(message, source, lineno, colno, error) {
+            if (typeof ga === "function") {
+                ga("send", "event", "error", error ? error.stack : message);
             }
-            document.addEventListener(
-                "paste",
-                (e) => {
-                    const items = e.clipboardData ? .items;
-                    if (!items) return;
-                    const item = Array.from(items).find((e) => e.type.startsWith("image"));
-                    if (!item) return;
-                    setSearchImageSrc(URL.createObjectURL(item.getAsFile()));
-                    e.preventDefault();
+        };
+    }, []);
+
+    const imageURLInput = (e) => {
+        e.preventDefault();
+        if (!e.target.value.length) {
+            setImageURL("");
+            history.replaceState(null, null, "/");
+            return;
+        }
+        if (e.target.parentNode.checkValidity()) {
+            setImageURL(e.target.value);
+            setSearchImageSrc(`/image-proxy?url=${encodeURIComponent(e.target.value)}`);
+            history.replaceState(null, null, `/?url=${encodeURIComponent(e.target.value)}`);
+        } else {
+            e.target.parentNode.querySelector("input[type=submit]").click();
+        }
+    };
+
+    const handleFileSelect = function(e) {
+        e.stopPropagation();
+        e.preventDefault();
+        if (imageURL) {
+            setImageURL();
+            history.replaceState(null, null, "/");
+        }
+        const file = e.dataTransfer ? e.dataTransfer.files[0] : e.target.files[0];
+        if (!file || !file.type.match("image.*")) {
+            setDropTargetText("Error: File is not an image");
+            return "Error: File is not an image";
+        }
+        setDropTargetText("");
+        e.target.classList.remove(dropping);
+        setSearchImageSrc(URL.createObjectURL(file));
+        return "";
+    };
+
+    useEffect(async() => {
+        if (!searchImageSrc) return;
+        setIsLoading(true);
+        setMessageText("Loading search image...");
+        const image = new Image();
+        image.onload = (e) => {
+            const canvas = document.createElement("canvas");
+            const ctx = canvas.getContext("2d");
+            canvas.width = e.target.width;
+            canvas.height = e.target.height;
+            ctx.drawImage(e.target, 0, 0);
+            canvas.toBlob(
+                function(blob) {
+                    setIsLoading(false);
+                    setSearchImage(blob);
+                    search(blob);
                 },
-                false
+                "image/jpeg",
+                0.8
             );
-
-            window.onerror = function(message, source, lineno, colno, error) {
-                if (typeof ga === "function") {
-                    ga("send", "event", "error", error ? error.stack : message);
-                }
-            };
-        }, []);
-
-        const imageURLInput = (e) => {
-            e.preventDefault();
-            if (!e.target.value.length) {
-                setImageURL("");
-                history.replaceState(null, null, "/");
-                return;
-            }
-            if (e.target.parentNode.checkValidity()) {
-                setImageURL(e.target.value);
-                setSearchImageSrc(`/image-proxy?url=${encodeURIComponent(e.target.value)}`);
-                history.replaceState(null, null, `/?url=${encodeURIComponent(e.target.value)}`);
-            } else {
-                e.target.parentNode.querySelector("input[type=submit]").click();
-            }
         };
-
-        const handleFileSelect = function(e) {
-            e.stopPropagation();
-            e.preventDefault();
-            if (imageURL) {
-                setImageURL();
-                history.replaceState(null, null, "/");
-            }
-            const file = e.dataTransfer ? e.dataTransfer.files[0] : e.target.files[0];
-            if (!file || !file.type.match("image.*")) {
-                setDropTargetText("Error: File is not an image");
-                return "Error: File is not an image";
-            }
-            setDropTargetText("");
-            e.target.classList.remove(dropping);
-            setSearchImageSrc(URL.createObjectURL(file));
-            return "";
+        image.onerror = () => {
+            setMessageText("Failed to load search image");
         };
+        image.src = searchImageSrc;
+    }, [searchImageSrc]);
 
-        useEffect(async() => {
-            if (!searchImageSrc) return;
-            setIsLoading(true);
-            setMessageText("Loading search image...");
-            const image = new Image();
-            image.onload = (e) => {
-                const canvas = document.createElement("canvas");
-                const ctx = canvas.getContext("2d");
-                canvas.width = e.target.width;
-                canvas.height = e.target.height;
-                ctx.drawImage(e.target, 0, 0);
-                canvas.toBlob(
-                    function(blob) {
-                        setIsLoading(false);
-                        setSearchImage(blob);
-                        search(blob);
-                    },
-                    "image/jpeg",
-                    0.8
-                );
-            };
-            image.onerror = () => {
-                setMessageText("Failed to load search image");
-            };
-            image.src = searchImageSrc;
-        }, [searchImageSrc]);
+    const search = async(imageBlob) => {
+        setMessageText("Searching...");
+        setSearchResult([]);
+        setSelectedResult();
+        setAnilistInfo();
+        setPlayerSrc();
+        setPlayerFileName("");
+        setPlayerTimeCode("");
+        setIsSearching(true);
+        const startSearchTime = performance.now();
+        const formData = new FormData();
+        formData.append("image", imageBlob);
+        const queryString = [
+            isCutBorders ? "cutBorders" : "",
+            anilistFilter ? `anilistID=${anilistFilter}` : "",
+        ].join("&");
+        const res = await fetch(`${NEXT_PUBLIC_API_ENDPOINT}/search?${queryString}`, {
+            method: "POST",
+            body: formData,
+        });
+        setIsSearching(false);
 
-        const search = async(imageBlob) => {
-            setMessageText("Searching...");
-            setSearchResult([]);
-            setSelectedResult();
-            setAnilistInfo();
-            setPlayerSrc();
-            setPlayerFileName("");
-            setPlayerTimeCode("");
-            setIsSearching(true);
-            const startSearchTime = performance.now();
-            const formData = new FormData();
-            formData.append("image", imageBlob);
-            const queryString = [
-                isCutBorders ? "cutBorders" : "",
-                anilistFilter ? `anilistID=${anilistFilter}` : "",
-            ].join("&");
-            const res = await fetch(`${NEXT_PUBLIC_API_ENDPOINT}/search?${queryString}`, {
-                method: "POST",
-                body: formData,
-            });
-            setIsSearching(false);
+        if (res.status === 429) {
+            setMessageText("You searched too many times, please try again later.");
+            return;
+        }
+        if (res.status >= 400) {
+            setMessageText(`${(await res.json()).error} Please try again later.`);
+            return;
+        }
+        const { frameCount, result } = await res.json();
 
-            if (res.status === 429) {
-                setMessageText("You searched too many times, please try again later.");
-                return;
-            }
-            if (res.status >= 400) {
-                setMessageText(`${(await res.json()).error} Please try again later.`);
-                return;
-            }
-            const { frameCount, result } = await res.json();
-
-            setMessageText(
-                `Searched ${frameCount.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")} frames in ${(
+        setMessageText(
+            `Searched ${frameCount.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")} frames in ${(
         (performance.now() - startSearchTime) /
         1000
       ).toFixed(2)}s`
-            );
+        );
 
-            if (result.length === 0) {
-                setMessageText("Cannot find any result");
-                return;
-            }
+        if (result.length === 0) {
+            setMessageText("Cannot find any result");
+            return;
+        }
 
-            const topResults = result.slice(0, 5);
+        const topResults = result.slice(0, 5);
 
-            const response = await fetch(NEXT_PUBLIC_ANILIST_ENDPOINT, {
-                method: "POST",
-                body: JSON.stringify({
-                    query: `query ($ids: [Int]) {
+        const response = await fetch(NEXT_PUBLIC_ANILIST_ENDPOINT, {
+            method: "POST",
+            body: JSON.stringify({
+                query: `query ($ids: [Int]) {
             Page(page: 1, perPage: 50) {
               media(id_in: $ids, type: ANIME) {
                 id
@@ -230,52 +229,52 @@ const {
             }
           }
           `,
-                    variables: { ids: topResults.map((e) => e.anilist) },
-                }),
-                headers: { "Content-Type": "application/json" },
-            });
-            if (response.status >= 400) {
-                setMessageText("Failed to get Anilist info, please try again later.");
-                const topResultsWithoutAnlist = topResults.map((entry) => {
-                    const id = entry.anilist;
-                    entry.anilist = {
-                        id,
-                        title: { native: id },
-                        isAdult: false,
-                    };
-                    entry.playResult = () => {
-                        setSelectedResult(entry);
-                        setPlayerSrc(entry.video);
-                        setPlayerFileName(entry.filename);
-                        setPlayerTimeCode(entry.from);
-                    };
-                    return entry;
-                });
-                setSearchResult(topResultsWithoutAnlist);
-                topResultsWithoutAnlist[0].playResult();
-                return;
-            }
-            const anilistData = (await response.json()).data.Page.media;
-
-            const topResultsWithAnlist = topResults.map((entry) => {
-                entry.anilist = anilistData.find((e) => e.id === entry.anilist);
+                variables: { ids: topResults.map((e) => e.anilist) },
+            }),
+            headers: { "Content-Type": "application/json" },
+        });
+        if (response.status >= 400) {
+            setMessageText("Failed to get Anilist info, please try again later.");
+            const topResultsWithoutAnlist = topResults.map((entry) => {
+                const id = entry.anilist;
+                entry.anilist = {
+                    id,
+                    title: { native: id },
+                    isAdult: false,
+                };
                 entry.playResult = () => {
                     setSelectedResult(entry);
-                    setAnilistInfo(entry.anilist);
                     setPlayerSrc(entry.video);
                     setPlayerFileName(entry.filename);
                     setPlayerTimeCode(entry.from);
                 };
                 return entry;
             });
-            setSearchResult(topResultsWithAnlist);
+            setSearchResult(topResultsWithoutAnlist);
+            topResultsWithoutAnlist[0].playResult();
+            return;
+        }
+        const anilistData = (await response.json()).data.Page.media;
 
-            if (!topResultsWithAnlist[0].anilist.isAdult) {
-                topResultsWithAnlist[0].playResult();
-            }
-        };
+        const topResultsWithAnlist = topResults.map((entry) => {
+            entry.anilist = anilistData.find((e) => e.id === entry.anilist);
+            entry.playResult = () => {
+                setSelectedResult(entry);
+                setAnilistInfo(entry.anilist);
+                setPlayerSrc(entry.video);
+                setPlayerFileName(entry.filename);
+                setPlayerTimeCode(entry.from);
+            };
+            return entry;
+        });
+        setSearchResult(topResultsWithAnlist);
 
-        return ( <
+        if (!topResultsWithAnlist[0].anilist.isAdult) {
+            topResultsWithAnlist[0].playResult();
+        }
+    };
+
+    return ( <
             Layout title = "Anime Scene Search Engine" >
             <
             Head >
@@ -458,13 +457,14 @@ const {
                     isSearching = { isSearching }
                     onDrop = { handleFileSelect } >
                     <
-                    /Player> {!isSearching && < Info anilist = { anilistInfo } > < /Info>} < /
-                    div > <
+                    /Player> {!isSearching && < Info anilist = { anilistInfo } > < /Info >
+                } < /
+                div > <
                     /div>
-                )
-            } <
-            /div> < /
-            Layout >
-        );
-    };
-    export default Index;
+            )
+        } <
+        /div> < /
+    Layout >
+);
+};
+export default Index;
